@@ -1,3 +1,49 @@
+# NovaMart Multi-Agent E-commerce RAG
+
+A multi-agent customer support system for a fictional e-commerce company, built on Amazon Bedrock AgentCore and Strands Agents. An orchestrator routes each request to specialist agents, shares state through DynamoDB, and answers policy questions with parallel RAG over three Bedrock Knowledge Bases.
+
+**Result:** passed Udacity project review on the first submission, with 120/120 on the automated test suite.
+
+## Architecture
+
+![Architecture](diagrams/architecture-overview.png)
+
+| Agent | Model | Role |
+|---|---|---|
+| Orchestrator | Claude Haiku 4.5 | Routes requests, manages shared WorkflowState, never writes the customer reply |
+| Inventory, Refund, Communication | Claude Sonnet 4.5 | Order facts, refund decisions (30-day Standard / 60-day Premium windows), final response |
+| Policy (RAG) | Claude Sonnet 4.5 | Coordinates three retrievers that query Returns, Shipping and Warranty Knowledge Bases in parallel |
+
+## Key features
+
+- **Parallel multi-agent RAG:** three retriever sub-agents run concurrently with `ThreadPoolExecutor`, each querying its own Bedrock Knowledge Base (S3 Vectors, Titan Embed v2), and the results are combined.
+- **Shared WorkflowState:** DynamoDB with optimistic locking, so each agent reads, works and writes back with a version check.
+- **Guardrails:** content filters, PII blocking and anonymization, and denied topics (competitor products, pricing negotiation, legal threats), attached to every agent's model.
+- **Memory:** AgentCore Memory with a session-summary strategy and 7-day retention.
+- **Observability:** CloudWatch logs and X-Ray traces at 100% sampling, with a full Orchestrator to Worker to Knowledge Base service map.
+- **Deployment:** AgentCore Runtime via the AgentCore CLI, with the guardrail and KB settings passed as runtime environment variables.
+
+## Evidence
+
+![Tests](test_results_120_score.png)
+![X-Ray service map](xray_service_map.png)
+
+## Run it
+
+Requires an AWS account with Bedrock model access.
+
+```bash
+cp .env.example .env      # fill in KB IDs, guardrail ID and runtime ARN
+python tests/test_agent.py all
+```
+
+## Possible next steps
+
+- Repeatable evaluations of answer quality and tool-call order with the Strands evals SDK
+- A CloudWatch dashboard for invocation count, latency per agent and guardrail triggers
+
+---
+
 # Enterprise Multi-Agent Architecture with Amazon Bedrock AgentCore
 
 **Udacity - School of AI | Course 3.3 | Capstone Project 3.3 NovaMart**
